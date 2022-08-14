@@ -26,6 +26,7 @@ package com.yt2dl;
 
 import com.yt2dl.utils.ResourceLoader;
 import java.io.File;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -45,15 +46,15 @@ import org.openqa.selenium.support.ui.FluentWait;
  */
 @Slf4j
 @AllArgsConstructor
-public class Converter implements Callable<String>
+public class Converter implements Callable<VideoInfo>
 {
 	private final String url;
 	private final String extension;
 
 	@Override
-	public String call()
+	public VideoInfo call()
 	{
-		// init web driver
+		// Init web driver
 		WebDriver driver = getWebDriver();
 
 		String converterSite = "https://ytmp3.cc/" + url;
@@ -76,20 +77,35 @@ public class Converter implements Callable<String>
 		// Get video title
 		String videoTitle = driver.findElement(By.cssSelector("div#advise")).getText() + "." + extension.toLowerCase();
 		log.info("Video title: {}", videoTitle);
+		
+		// Video destination file
 		File video = new File(Constants.YT_DOWNLOADS_DIRECTORY + File.separator + videoTitle);
 
 		// Download
 		driver.findElement(By.cssSelector("a#download")).click();
 
 		wait.until(x -> video.exists());
+		wait.withTimeout(Duration.ofSeconds(5));
 
+		// Video info
+		VideoInfo videoInfo = null;
+		if (video.exists()) 
+		{
+		    videoInfo = new VideoInfo(videoTitle, video.length(), video.toPath());
+		    log.info("Successfully downloaded: {}", videoInfo.toString());
+		} 
+		else
+		{
+		    log.error("Failed to download: {}", videoTitle);
+		}
+		
 		driver.close();
 		driver.quit();
-		return "Finished downloading: " + videoTitle;
+		return videoInfo;
 	}
 
 	/**
-	 * get web driver instance
+	 * Get web driver instance
 	 */
 	private WebDriver getWebDriver()
 	{

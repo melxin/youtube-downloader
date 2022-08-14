@@ -38,7 +38,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class Downloader
 {
-	private final ExecutorService executor = Executors.newWorkStealingPool(); // Executor to submit Future<>
+	private final ExecutorService executor = Executors.newFixedThreadPool(3); // Executor to submit Future<>
 
 	private final AtomicInteger downloadCount = new AtomicInteger();
 
@@ -51,15 +51,22 @@ public class Downloader
 	private void executeTasks(List tasks) throws InterruptedException
 	{
 		// invoke
-		List<Future> futures = executor.invokeAll(tasks, 20, TimeUnit.MINUTES);
+		List<Future> futures = executor.invokeAll(tasks, 60, TimeUnit.MINUTES);
 
 		futures.stream().filter((future) -> (!future.isCancelled())).forEach((future) ->
 		{
 			try
 			{
-				String result = (String) future.get(15, TimeUnit.MINUTES);
+				VideoInfo result = (VideoInfo) future.get(15, TimeUnit.MINUTES);
+				
+				if (result == null) 
+				{
+				    log.error("Task failed...");
+				    return;
+				}
+				
 				downloadCount.incrementAndGet();
-				log.info("Finished task: {}", result);
+				log.info("Finished task: {}", result.toString());
 			}
 			catch (InterruptedException | ExecutionException | TimeoutException ex)
 			{
